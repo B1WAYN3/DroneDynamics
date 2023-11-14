@@ -1,0 +1,80 @@
+% Thrust and moment calculations as functions of motor speeds
+Thrust_general = @(n) Ct_least_squares * p_row * D^4 * n.^2; == a 
+
+% Creating Yawing Function
+Yawing_Function = @(x) ((p_row * Cp_least_squares * D^5) / 2 * pi ) * x^2;
+
+% Creating Pitching Function
+Pitching_function = @(x) p_row * Ct_least_squares * D^4 * x^2  * Distance_to_pitch_axis;
+
+% Creating Rolling Function 
+Rolling_function = @(x) p_row * Ct_least_squares * D^4 * x^2  * distance_to_roll_axis_m; 
+
+% Mx
+M_x_FR = -Rolling_function(nFR);
+M_x_FL = Rolling_function(nFL);
+M_x_RL = Rolling_function(nRL);
+M_x_RR = -Rolling_function(nRR);
+
+ 
+Mx = vpa(M_x_FR + M_x_FL + M_x_RL + M_x_RR);  % Roll moment as a function of motor speeds
+
+% My 
+M_y_FR = Pitching_function(nFR);
+M_y_FL = Pitching_function(nFL);
+M_y_RL = -Pitching_function(nRL);
+M_y_RR = -Pitching_function(nRR);
+
+My = vpa(M_y_FR + M_y_FL + M_y_RL + M_y_RR); % Pitch moment as a function of motor speeds
+
+% Mz 
+M_z_FR = Yawing_Function(nFR);
+M_z_FL = -Yawing_Function(nFL);
+M_z_RL = Yawing_Function(nRL);
+M_z_RR = -Yawing_Function(nRR);
+
+Mz = vpa(M_z_FR + M_z_FL + M_z_RL + M_z_RR); % Yaw moment as a function of motor speeds
+
+% Total moment
+Mt = [Mx; My; Mz]; 
+________________________________________________________________________________________________
+% calculate a, b, c, d 
+a_value = p_row * Ct_least_squares * D^4 ; 
+b_value = p_row * Ct_least_squares * distance_to_roll_axis_m * D^4; 
+c_value = p_row * Ct_least_squares * distance_to_roll_axis_m * D^4; 
+d_value = (p_row * Cp_least_squares * D^5)/(2 * pi); 
+
+A = [-abs(a_value),-abs(a_value) -abs(a_value), -abs(a_value)]; 
+B = [abs(b_value), -abs(b_value),-abs(b_value),  abs(b_value)]; 
+C = [abs(c_value), abs(c_value), -abs(c_value), -abs(c_value)]; 
+D = [-abs(d_value),abs(d_value), -abs(d_value),  abs(d_value)];
+
+% Create M 
+M = [A;...
+     B;...
+     C;...
+     D]; 
+
+
+% Mixer implementation: 
+
+% Create inverse of M 
+M_inv = inv(M); 
+
+W_c_t = [Z_T_c; L_T_c; M_T_c; N_T_c];
+
+motor_speeds_squared = M_inv \ W_c_t; % Equivalent to M_inv * W_c_t, just faster 
+
+motor_speeds = sqrt(abs(motor_speeds_squared)); 
+
+Mt = [motor_speeds(1);...
+      motor_speeds(2);...
+      motor_speeds(3);...
+      motor_speeds(4)]; 
+
+w_g_t = M * motor_speeds_squared; 
+
+nFL = vpa(w_g_t(1)); 
+nFR = vpa(w_g_t(2)); 
+nRL = vpa(w_g_t(3)); 
+nRR = vpa(w_g_t(4));
